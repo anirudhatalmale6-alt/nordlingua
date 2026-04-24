@@ -106,7 +106,8 @@ const LANG_NAMES = {
   sv: 'Swedish', en: 'English', no: 'Norwegian', da: 'Danish', fi: 'Finnish',
   de: 'German', fr: 'French', es: 'Spanish', it: 'Italian', pt: 'Portuguese',
   nl: 'Dutch', pl: 'Polish', ar: 'Arabic', zh: 'Chinese', ja: 'Japanese',
-  ko: 'Korean', ru: 'Russian', tr: 'Turkish', hi: 'Hindi'
+  ko: 'Korean', ru: 'Russian', tr: 'Turkish', hi: 'Hindi', ur: 'Urdu',
+  pa: 'Punjabi', phr: 'Pahari', prs: 'Dari'
 };
 
 async function handleGrammarCheck(text, language) {
