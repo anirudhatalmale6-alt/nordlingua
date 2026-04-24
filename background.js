@@ -7,6 +7,8 @@ const DEFAULT_SETTINGS = {
   enabled: true
 };
 
+const API_BASE = 'https://skylarkmedia.se/ord/api';
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.sync.get('settings', (data) => {
     if (!data.settings) {
@@ -15,30 +17,30 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 
   chrome.contextMenus.create({
-    id: 'nordlingua-check',
-    title: 'NordLingua: Check grammar',
+    id: 'ord-check',
+    title: 'Ord: Check grammar',
     contexts: ['selection']
   });
   chrome.contextMenus.create({
-    id: 'nordlingua-rephrase',
-    title: 'NordLingua: Rephrase',
+    id: 'ord-rephrase',
+    title: 'Ord: Rephrase',
     contexts: ['selection']
   });
   chrome.contextMenus.create({
-    id: 'nordlingua-formal',
-    title: 'NordLingua: Make formal',
+    id: 'ord-formal',
+    title: 'Ord: Make formal',
     contexts: ['selection']
   });
   chrome.contextMenus.create({
-    id: 'nordlingua-casual',
-    title: 'NordLingua: Make casual',
+    id: 'ord-casual',
+    title: 'Ord: Make casual',
     contexts: ['selection']
   });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!info.selectionText) return;
-  const action = info.menuItemId.replace('nordlingua-', '');
+  const action = info.menuItemId.replace('ord-', '');
   chrome.tabs.sendMessage(tab.id, { type: 'CONTEXT_ACTION', action, text: info.selectionText });
 });
 
@@ -67,122 +69,36 @@ async function getSettings() {
   });
 }
 
-async function callClaudeAPI(systemPrompt, userContent) {
+async function callOrdAPI(endpoint, body) {
   const settings = await getSettings();
   if (!settings.apiKey) {
-    return { error: 'API key not configured. Click the NordLingua icon to set up.' };
+    return { error: 'API key not configured. Click the Ord icon to set up.' };
   }
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': settings.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'x-api-key': settings.apiKey
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userContent }]
-      })
+      body: JSON.stringify(body)
     });
 
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      return { error: err.error?.message || `API error: ${resp.status}` };
-    }
-
     const data = await resp.json();
-    return { result: data.content[0].text };
+    if (!resp.ok) {
+      return { error: data.error || `Server error: ${resp.status}` };
+    }
+    return data;
   } catch (e) {
     return { error: 'Network error: ' + e.message };
   }
 }
 
-const LANG_NAMES = {
-  sv: 'Swedish', en: 'English', no: 'Norwegian', da: 'Danish', fi: 'Finnish',
-  de: 'German', fr: 'French', es: 'Spanish', it: 'Italian', pt: 'Portuguese',
-  nl: 'Dutch', pl: 'Polish', ar: 'Arabic', zh: 'Chinese', ja: 'Japanese',
-  ko: 'Korean', ru: 'Russian', tr: 'Turkish', hi: 'Hindi', ur: 'Urdu',
-  pa: 'Punjabi', phr: 'Pahari', prs: 'Dari'
-};
-
 async function handleGrammarCheck(text, language) {
-  const langName = LANG_NAMES[language] || language;
-  const systemPrompt = `You are a professional ${langName} grammar and spelling checker. Analyze the text and return a JSON response with this exact structure:
-{
-  "corrected": "the full corrected text",
-  "issues": [
-    {
-      "type": "grammar|spelling|punctuation|style",
-      "original": "the wrong part",
-      "suggestion": "the corrected part",
-      "explanation": "brief explanation in ${langName}"
-    }
-  ],
-  "score": 85
-}
-
-Rules:
-- "corrected" must contain the full text with all corrections applied
-- "issues" lists each problem found (empty array if text is perfect)
-- "score" is a writing quality score from 0-100
-- Keep explanations short and in ${langName}
-- Respond ONLY with valid JSON, no markdown, no backticks`;
-
-  const result = await callClaudeAPI(systemPrompt, text);
-  if (result.error) return result;
-
-  try {
-    const parsed = JSON.parse(result.result);
-    return { result: parsed };
-  } catch {
-    const jsonMatch = result.result.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        return { result: JSON.parse(jsonMatch[0]) };
-      } catch {}
-    }
-    return { error: 'Failed to parse AI response' };
-  }
+  return callOrdAPI('/check', { text, language });
 }
 
 async function handleRephrase(text, language, style) {
-  const langName = LANG_NAMES[language] || language;
-  const styleInstructions = {
-    rephrase: `Rephrase the text in ${langName} to be clearer and more natural while keeping the same meaning.`,
-    formal: `Rewrite the text in ${langName} using formal, professional language suitable for business correspondence.`,
-    casual: `Rewrite the text in ${langName} using casual, friendly language suitable for informal communication.`,
-    concise: `Make the text shorter and more concise in ${langName} while keeping the key meaning.`,
-    elaborate: `Expand and elaborate on the text in ${langName} with more detail and nuance.`
-  };
-
-  const systemPrompt = `You are a professional ${langName} writing assistant. ${styleInstructions[style] || styleInstructions.rephrase}
-
-Return a JSON response:
-{
-  "rephrased": "the rephrased text",
-  "changes": "brief description of what changed, in ${langName}"
-}
-
-Respond ONLY with valid JSON, no markdown, no backticks.`;
-
-  const result = await callClaudeAPI(systemPrompt, text);
-  if (result.error) return result;
-
-  try {
-    const parsed = JSON.parse(result.result);
-    return { result: parsed };
-  } catch {
-    const jsonMatch = result.result.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        return { result: JSON.parse(jsonMatch[0]) };
-      } catch {}
-    }
-    return { error: 'Failed to parse AI response' };
-  }
+  return callOrdAPI('/rephrase', { text, language, style });
 }
