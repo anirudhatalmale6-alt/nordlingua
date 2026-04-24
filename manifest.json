@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "NordLingua - AI Writing Assistant",
+  "name": "Ord - AI Writing Assistant",
   "version": "1.0.0",
-  "description": "AI-powered grammar and spell checking for Swedish, English, and Nordic languages",
+  "description": "Ord - AI-powered grammar and spell checking for 19+ languages including Swedish, English, Urdu, Hindi, and more",
   "permissions": ["activeTab", "storage", "contextMenus"],
   "host_permissions": ["<all_urls>"],
   "background": {
