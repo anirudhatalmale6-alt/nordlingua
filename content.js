@@ -15,11 +15,11 @@
   function createPanel() {
     if (activePanel) activePanel.remove();
     const panel = document.createElement('div');
-    panel.id = 'nordlingua-panel';
+    panel.id = 'ord-panel';
     panel.innerHTML = `
       <div class="nl-panel-header">
         <div class="nl-panel-title">
-          <span class="nl-logo">N</span> NordLingua
+          <span class="nl-logo">O</span> Ord
         </div>
         <div class="nl-panel-actions">
           <button class="nl-btn-icon" id="nl-minimize" title="Minimize">&#8722;</button>
@@ -343,9 +343,9 @@
 
   // Floating activation button
   const fab = document.createElement('div');
-  fab.id = 'nordlingua-fab';
-  fab.innerHTML = '<span class="nl-fab-letter">N</span>';
-  fab.title = 'NordLingua - Click or Ctrl+Shift+G';
+  fab.id = 'ord-fab';
+  fab.innerHTML = '<span class="nl-fab-letter">O</span>';
+  fab.title = 'Ord - Click to check grammar (Ctrl+Shift+G)';
   fab.onclick = () => {
     if (activePanel) {
       activePanel.remove();
